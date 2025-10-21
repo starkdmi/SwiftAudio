@@ -342,19 +342,18 @@ public struct Fbank {
             // Reflect padding
             let m = (numSamples + (windowShift / 2)) / windowShift
             let pad = windowSize / 2 - windowShift / 2
-            
+
             var paddedWaveform = waveform
             if pad > 0 && numSamples > pad {
-                // Optimized reflection padding
-                let actualLeftPad = min(pad, numSamples - 1)
-                let leftIndices = MLXArray(Array(1...actualLeftPad).reversed().map { Int32($0) })
-                let padLeft = waveform.take(leftIndices, axis: 0)
-                
-                let actualRightPad = min(pad, numSamples - 1)
-                let rightStart = max(0, numSamples - actualRightPad - 1)
-                let rightIndices = MLXArray((rightStart..<(numSamples - 1)).reversed().map { Int32($0) })
-                let padRight = waveform.take(rightIndices, axis: 0)
-                
+                let padLeft = waveform[1..<(pad + 1)][.stride(by: -1)]
+
+                let padRight: MLXArray
+                if pad > 1 {
+                    padRight = waveform[(-pad - 1)..<(-1)][.stride(by: -1)]
+                } else {
+                    padRight = waveform[-2..<(-1)]
+                }
+
                 paddedWaveform = MLX.concatenated([padLeft, waveform, padRight])
             } else if pad > 0 {
                 // Zero padding for short signals
@@ -367,7 +366,7 @@ public struct Fbank {
                     paddedWaveform = waveform[trimAmount...]
                 }
             }
-            
+
             // Use native MLX.asStrided for efficient frame extraction
             return MLX.asStrided(paddedWaveform, [m, windowSize], strides: [windowShift, 1])
         }
